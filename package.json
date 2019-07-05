@@ -1,13 +1,13 @@
 {
-  "name": "minecraft-nbt",
-  "version": "0.0.3",
-  "description": "named binary tag (minecraft) parser in pure js",
-  "main": "index.js",
-  "scripts": {},
-  "repository": "https://github.com/maxogden/minecraft-nbt",
-  "author": "Jason Livesay <ithkuil@gmail.com>, Max Ogden <max@maxogden.com>",
+  "name": "minecraft-nbt-new",
+  "version": "0.0.4",
+  "description": "NBT parser and writer",
+  "main": "NBTReadWriter.js",
+  "scripts":
+  {},
+  "repository": "https://github.com/VeryGoodDog/minecraft-nbt-new",
+  "author": "Jason Livesay <ithkuil@gmail.com>, Max Ogden <max@maxogden.com>, verygooddog",
   "license": "BSD",
-  "dependencies": {
-    "jdataview": "^2.4.5"
-  }
+  "dependencies":
+  {}
 }
