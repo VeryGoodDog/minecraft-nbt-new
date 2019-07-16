@@ -1,10 +1,12 @@
-exports.tags = {};
+const tags = {};
+let typesByID = new Array(0xD);
+exports.tags = tags;
+exports.typesByID = typesByID;
 // Base class.
 class TAG {
 	constructor(tag) {
-		this.type = tag.type; // A short string that has the type.
-		this.payload = tag.payloadSize; // Number of bytes that is stored by this tag.
-		this.float = tag.float ? true : false;
+		this.type = this.constructor.TYPE_NAME; // A short string that has the type.
+		this.payload = this.constructor.PAYLOAD_SIZE; // Number of bytes that is stored by this tag.
 		this.nameTag = tag.nameTag || null; // The name of this tag. It is optional to start with.
 		this.parent = null;
 		this.value = tag.value || null; // The value of the tag, optional to support reading files.
@@ -109,12 +111,8 @@ Payload: TAG_Int length
 // x0
 class TAG_End extends TAG {
 	constructor() {
-		super({
-			"type": "End",
-			"payloadSize": 0
-		});
+		super({});
 		delete this.value;
-		delete this.float;
 		delete this.nameTag; // These are NOT relevant, thus: YEET!
 	}
 	setName() {
@@ -122,95 +120,94 @@ class TAG_End extends TAG {
 	}
 }
 TAG_End.TYPE_ID = 0x0;
-exports.tags.TAG_End = TAG_End;
+TAG_End.TYPE_NAME = 'End';
+TAG_End.PAYLOAD_SIZE = 0;
+tags.TAG_End = typesByID[0x0] = TAG_End;
 
 // x1
 class TAG_Byte extends TAG {
 	constructor(val) {
 		super({
-			"type": "Byte",
-			"payloadSize": 1,
 			"value": val
 		});
 	}
 }
 TAG_Byte.TYPE_ID = 0x1;
-exports.tags.TAG_Byte = TAG_Byte;
+TAG_Byte.TYPE_NAME = 'Byte';
+TAG_Byte.PAYLOAD_SIZE = 1;
+tags.TAG_Byte = typesByID[0x1] = TAG_Byte;
 
 // x2
 class TAG_Short extends TAG {
 	constructor(val) {
 		super({
-			"type": "Short",
-			"payloadSize": 2,
 			"value": val
 		});
 	}
 }
 TAG_Short.TYPE_ID = 0x2;
-exports.tags.TAG_Short = TAG_Short;
+TAG_Short.TYPE_NAME = 'Short';
+TAG_Short.PAYLOAD_SIZE = 2;
+tags.TAG_Short = typesByID[0x2] = TAG_Short;
 
 // x3
 class TAG_Int extends TAG {
 	constructor(val) {
 		super({
-			"type": "Int",
-			"payloadSize": 4,
 			"value": val
 		});
 	}
 }
 TAG_Int.TYPE_ID = 0x3;
-exports.tags.TAG_Int = TAG_Int;
+TAG_Int.TYPE_NAME = 'Int';
+TAG_Int.PAYLOAD_SIZE = 4;
+tags.TAG_Int = typesByID[0x3] = TAG_Int;
 
 // x4
 class TAG_Long extends TAG {
 	constructor(val) {
 		super({
-			"type": "Long",
-			"payloadSize": 8,
 			"value": val
 		});
 	}
 }
 TAG_Long.TYPE_ID = 0x4;
-exports.tags.TAG_Long = TAG_Long;
+TAG_Long.TYPE_NAME = 'Long';
+TAG_Long.PAYLOAD_SIZE = 8;
+tags.TAG_Long = typesByID[0x4] = TAG_Long;
 
 // x5
 class TAG_Float extends TAG {
 	constructor(val) {
 		super({
-			"type": "Float",
-			"payloadSize": 4,
-			"value": val,
-			"float": true
+			"value": val
 		});
 	}
 }
 TAG_Float.TYPE_ID = 0x5;
-exports.tags.TAG_Float = TAG_Float;
+TAG_Float.TYPE_NAME = 'Float';
+TAG_Float.PAYLOAD_SIZE = 4;
+tags.TAG_Float = typesByID[0x5] = TAG_Float;
 
 // x6
 class TAG_Double extends TAG {
 	constructor(val) {
 		super({
-			"type": "Double",
-			"payloadSize": 8,
-			"value": val,
-			"float": true
+			"value": val
 		});
 	}
 }
 TAG_Double.TYPE_ID = 0x6;
-exports.tags.TAG_Double = TAG_Double;
+TAG_Double.TYPE_NAME = 'Double';
+TAG_Double.PAYLOAD_SIZE = 8;
+tags.TAG_Double = typesByID[0x6] = TAG_Double;
 
 // End of numeric types...
 // This is not an actual tag type and is only used for ease.
 class VariableTag extends TAG {
 	constructor(tag) {
 		super(tag);
-		this.header = tag.headerSize; // Lists have a payload size and a header size.
-		delete this.float;
+		this.header = tag.constructor.HEADER_SIZE; // Lists have a payload size and a header size.
 	}
 	calcVariableSize() {
 		return 1 + this.header + this.payload * this.value.length;
@@ -221,57 +218,63 @@ class VariableTag extends TAG {
 class TAG_Byte_Array extends VariableTag {
 	constructor(vals) {
 		super({
-			"type": "Byte Array",
-			"payloadSize": 1,
-			"headerSize": 4,
 			"value": vals
 		});
 	}
 }
-TAG_Float.TYPE_ID = 0x7;
-exports.tags.TAG_Byte_Array = TAG_Byte_Array;
+TAG_Byte_Array.TYPE_ID = 0x7;
+TAG_Byte_Array.TYPE_NAME = 'Byte Array';
+TAG_Byte_Array.PAYLOAD_SIZE = 1;
+TAG_Byte_Array.HEADER_SIZE = 4;
+tags.TAG_Byte_Array = types[0x7] = TAG_Byte_Array;
 
 // x8
 class TAG_String extends VariableTag {
 	constructor(value) {
 		super({
-			"type": "String",
-			"payloadSize": 1,
-			"headerSize": 2,
 			"value": value
 		});
 	}
 }
 TAG_String.TYPE_ID = 0x8;
-exports.tags.TAG_String = TAG_String;
+TAG_String.TYPE_NAME = 'String';
+TAG_String.PAYLOAD_SIZE = 1;
+TAG_String.HEADER_SIZE = 2;
+tags.TAG_String = typesByID[0x8] = TAG_String;
 
 // x9
-class TAG_List extends VariableTag { // TODO: this
+class TAG_List extends VariableTag {
 	constructor(vals, type) {
 		super({});
 	}
 }
 TAG_List.TYPE_ID = 0x9;
-exports.tags.TAG_List = TAG_List;
+TAG_List.TYPE_NAME = 'List';
+TAG_List.PAYLOAD_SIZE = null;
+TAG_List.HEADER_SIZE = 2;
+tags.TAG_List = typesByID[0x9] = TAG_List;
 
 // xA
 class TAG_Compound extends VariableTag {} // TODO: this too
 TAG_Compound.TYPE_ID = 0xA;
-exports.tags.TAG_Compound = TAG_Compound;
+TAG_Compound.TYPE_NAME = 'Compound';
+TAG_Compound.PAYLOAD_SIZE = null;
+TAG_Compound.HEADER_SIZE = null;
+tags.TAG_Compound = typesByID[0xA] = TAG_Compound;
 
 // xB
 class TAG_Int_Array extends VariableTag {
 	constructor(vals) {
 		super({
-			"type": "Int Array",
-			"payloadSize": 4,
-			"headerSize": 4,
 			"value": vals
 		});
 	}
 }
 TAG_Int_Array.TYPE_ID = 0xB;
-exports.tags.TAG_Int_Array = TAG_Int_Array;
+TAG_Int_Array.TYPE_NAME = 'Int Array';
+TAG_Int_Array.PAYLOAD_SIZE = 4;
+TAG_Int_Array.HEADER_SIZE = 4;
+tags.TAG_Int_Array = typesByID[0xB] = TAG_Int_Array;
 
 // xC, last one :)
 class TAG_Long_Array extends VariableTag {
@@ -285,4 +288,7 @@ class TAG_Long_Array extends VariableTag {
 	}
 }
 TAG_Long_Array.TYPE_ID = 0xC;
-exports.tags.TAG_Long_Array = TAG_Long_Array;
+TAG_Long_Array.TYPE_NAME = 'Long Array';
+TAG_Long_Array.PAYLOAD_SIZE = 8;
+TAG_Long_Array.HEADER_SIZE = 4;
+tags.TAG_Long_Array = typesByID[0xC] = TAG_Long_Array;
