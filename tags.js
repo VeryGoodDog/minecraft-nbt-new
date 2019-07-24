@@ -9,7 +9,7 @@ class TAG {
 		this.payload = this.constructor.PAYLOAD_SIZE; // Number of bytes that is stored by this tag.
 		this.nameTag = tag.nameTag || null; // The name of this tag. It is optional to start with.
 		this.parent = null;
-		this.value = tag.value || null; // The value of the tag, optional to support reading files.
+		this.value = tag.value;
 	}
 	get name() {
 		return this.nameTag._value;
@@ -26,85 +26,12 @@ class TAG {
 		let size = 1; // Size is always at least one because of the Type ID Byte
 		size += this.payload; // Add the payload bytes
 
-		if (this instanceof VariableTag) // Lists and Strings are sized fundamentally differently
-			size += this.calcVariableSize(); // and need their own sizing method.
-
 		if (this.nameTag) // Add the size of the name tag too.
-			size += this.nameTag.calcVariableSize();
+			size += this.nameTag.calcSize();
 
 		return size;
 	}
 }
-
-// TAG Info
-/*
-Specifications for each tag:
-
-TYPEID: x0
-TYPE: TAG_End
-Payload: None.
-Note:    This tag is used to mark the end of a list.
-				 Cannot be named! If type 0 appears where a Named Tag is expected, the name is assumed to be "".
-
-TYPEID: x1
-TYPE: TAG_Byte
-Payload: Int8
-
-TYPEID: x2
-TYPE: TAG_Short
-Payload: Int16BE
-
-TYPEID: x3
-TYPE: TAG_Int
-Payload: Int32BE
-
-TYPEID: x4
-TYPE: TAG_Long
-Payload: Int64BE
-
-TYPEID: x5
-TYPE: TAG_Float
-Payload: FloatBE
-
-TYPEID: x6
-TYPE: TAG_Double
-Payload: DoubleBE
-
-TYPEID: x7
-TYPE: TAG_Byte_Array
-Payload: TAG_Int length 
-         length x TAG_Byte
-
-TYPEID: x8
-TYPE: TAG_String
-Payload: TAG_Short length 
-         length x Int8
-
-TYPEID: x9
-TYPE: TAG_List
-Payload: TAG_Byte tagId
-         TAG_Int length
-         length x TAG_<tagId>
-Note:    All tags share the same type.
-         
-TYPEID: xA
-TYPE: TAG_Compound
-Payload: list of Named Tags
-         TAG_End end
-Note:    May contain other TAG_Compounds, each is terminated by its own TAG_End
-
-TYPEID: xB
-TYPE: TAG_Int_Array
-Payload: TAG_Int length
-				 length x TAG_Int
-
-TYPEID: xC
-TYPE: TAG_Long_Array
-Payload: TAG_Int length
-				 length x TAG_Long
-				 
-~~~
-*/
 
 // Each tag has the binary value x0-xC.
 // We start with the 'End' tag at x0.
@@ -207,9 +134,12 @@ tags.TAG_Double = typesByID[0x6] = TAG_Double;
 class VariableTag extends TAG {
 	constructor(tag) {
 		super(tag);
-		this.header = tag.constructor.HEADER_SIZE; // Lists have a payload size and a header size.
+		this.header = this.constructor.HEADER_SIZE; // Lists have a payload size and a header size.
 	}
-	calcVariableSize() {
+	get length() {
+		return this.value.length;
+	}
+	calcSize() {
 		return 1 + this.header + this.payload * this.value.length;
 	}
 }
@@ -226,7 +156,7 @@ TAG_Byte_Array.TYPE_ID = 0x7;
 TAG_Byte_Array.TYPE_NAME = 'Byte Array';
 TAG_Byte_Array.PAYLOAD_SIZE = 1;
 TAG_Byte_Array.HEADER_SIZE = 4;
-tags.TAG_Byte_Array = types[0x7] = TAG_Byte_Array;
+tags.TAG_Byte_Array = typesByID[0x7] = TAG_Byte_Array;
 
 // x8
 class TAG_String extends VariableTag {
@@ -245,7 +175,21 @@ tags.TAG_String = typesByID[0x8] = TAG_String;
 // x9
 class TAG_List extends VariableTag {
 	constructor(vals, type) {
-		super({});
+		let p;
+		if (typeof type === 'number')
+			p = typesByID[type];
+		else
+			p = type;
+		super({
+			"value": vals
+		});
+		this.payload = p.PAYLOAD_SIZE;
+	}
+	calcSize() {
+		let size = 1 + this.header;
+		size += this.value.reduce(
+			(acc, cur) => acc + cur.calcSize(), 0);
+		return size;
 	}
 }
 TAG_List.TYPE_ID = 0x9;
@@ -255,7 +199,19 @@ TAG_List.HEADER_SIZE = 2;
 tags.TAG_List = typesByID[0x9] = TAG_List;
 
 // xA
-class TAG_Compound extends VariableTag {} // TODO: this too
+class TAG_Compound extends VariableTag {
+	constructor(vals) {
+		super({
+			"value": vals
+		});
+	}
+	calcSize() {
+		let size = 2 + this.header;
+		size += this.value.reduce(
+			(acc, cur) => acc + cur.calcSize(), 0);
+		return size;
+	}
+} // TODO: this too
 TAG_Compound.TYPE_ID = 0xA;
 TAG_Compound.TYPE_NAME = 'Compound';
 TAG_Compound.PAYLOAD_SIZE = null;
@@ -292,3 +248,6 @@ TAG_Long_Array.TYPE_NAME = 'Long Array';
 TAG_Long_Array.PAYLOAD_SIZE = 8;
 TAG_Long_Array.HEADER_SIZE = 4;
 tags.TAG_Long_Array = typesByID[0xC] = TAG_Long_Array;
+
+// class declarations arent hoisted so this is here
+exports.typesByClass = new Map(typesByID.map((cur, i) => [cur, i]));
