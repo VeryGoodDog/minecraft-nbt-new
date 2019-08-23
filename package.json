@@ -3,8 +3,9 @@
   "version": "0.0.4",
   "description": "NBT parser and writer",
   "main": "NBTReadWriter.js",
-  "scripts":
-  {},
+  "scripts": {
+    "test": "node ./test.js"
+  },
   "repository": "https://github.com/VeryGoodDog/minecraft-nbt-new",
   "author": "Jason Livesay <ithkuil@gmail.com>, Max Ogden <max@maxogden.com>, verygooddog",
   "license": "BSD",

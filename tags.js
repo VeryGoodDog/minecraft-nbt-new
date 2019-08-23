@@ -7,27 +7,31 @@ class TAG {
 	constructor(tag) {
 		this.type = this.constructor.TYPE_NAME; // A short string that has the type.
 		this.payload = this.constructor.PAYLOAD_SIZE; // Number of bytes that is stored by this tag.
+		this.payloadName = this.constructor.PAYLOAD_NAME || null;
 		this.nameTag = tag.nameTag || null; // The name of this tag. It is optional to start with.
-		this.parent = null;
 		this.value = tag.value;
 	}
 	get name() {
-		return this.nameTag._value;
+		return this.nameTag.value;
 	}
+	// Simple getter for name
+	set name(n) {
+		this.nameTag.value = n;
+	}
+	// Getter that sets or CREATES a name, used with TAG_String or new objects
 	setName(name) {
 		if (name === this) throw new Error('Cannot name a TAG_String with itself.');
 		if (name instanceof TAG_String) // name can be a JS string or a TAG_String :)
 			this.nameTag = name;
 		else
 			this.nameTag = new TAG_String(name);
-		this.nameTag.parent = this;
 	}
 	calcSize() {
 		let size = 1; // Size is always at least one because of the Type ID Byte
 		size += this.payload; // Add the payload bytes
 
 		if (this.nameTag) // Add the size of the name tag too.
-			size += this.nameTag.calcSize();
+			size += this.nameTag.calcSize() - 1;
 
 		return size;
 	}
@@ -62,6 +66,7 @@ class TAG_Byte extends TAG {
 TAG_Byte.TYPE_ID = 0x1;
 TAG_Byte.TYPE_NAME = 'Byte';
 TAG_Byte.PAYLOAD_SIZE = 1;
+TAG_Byte.PAYLOAD_NAME = 'Int8';
 tags.TAG_Byte = typesByID[0x1] = TAG_Byte;
 
 // x2
@@ -75,6 +80,7 @@ class TAG_Short extends TAG {
 TAG_Short.TYPE_ID = 0x2;
 TAG_Short.TYPE_NAME = 'Short';
 TAG_Short.PAYLOAD_SIZE = 2;
+TAG_Short.PAYLOAD_NAME = 'Int16BE';
 tags.TAG_Short = typesByID[0x2] = TAG_Short;
 
 // x3
@@ -88,6 +94,7 @@ class TAG_Int extends TAG {
 TAG_Int.TYPE_ID = 0x3;
 TAG_Int.TYPE_NAME = 'Int';
 TAG_Int.PAYLOAD_SIZE = 4;
+TAG_Int.PAYLOAD_NAME = 'Int32BE';
 tags.TAG_Int = typesByID[0x3] = TAG_Int;
 
 // x4
@@ -101,6 +108,7 @@ class TAG_Long extends TAG {
 TAG_Long.TYPE_ID = 0x4;
 TAG_Long.TYPE_NAME = 'Long';
 TAG_Long.PAYLOAD_SIZE = 8;
+TAG_Long.PAYLOAD_NAME = 'BigInt64BE';
 tags.TAG_Long = typesByID[0x4] = TAG_Long;
 
 // x5
@@ -114,6 +122,7 @@ class TAG_Float extends TAG {
 TAG_Float.TYPE_ID = 0x5;
 TAG_Float.TYPE_NAME = 'Float';
 TAG_Float.PAYLOAD_SIZE = 4;
+TAG_Float.PAYLOAD_NAME = 'FloatBE';
 tags.TAG_Float = typesByID[0x5] = TAG_Float;
 
 // x6
@@ -127,6 +136,7 @@ class TAG_Double extends TAG {
 TAG_Double.TYPE_ID = 0x6;
 TAG_Double.TYPE_NAME = 'Double';
 TAG_Double.PAYLOAD_SIZE = 8;
+TAG_Double.PAYLOAD_NAME = 'DoubleBE'
 tags.TAG_Double = typesByID[0x6] = TAG_Double;
 
 // End of numeric types...
@@ -140,7 +150,10 @@ class VariableTag extends TAG {
 		return this.value.length;
 	}
 	calcSize() {
-		return 1 + this.header + this.payload * this.value.length;
+		let size = 1 + this.header;
+		size += this.payload * this.value.length;
+		if (this.nameTag) size += this.nameTag.calcSize() - 1;
+		return size;
 	}
 }
 
@@ -155,6 +168,7 @@ class TAG_Byte_Array extends VariableTag {
 TAG_Byte_Array.TYPE_ID = 0x7;
 TAG_Byte_Array.TYPE_NAME = 'Byte Array';
 TAG_Byte_Array.PAYLOAD_SIZE = 1;
+TAG_Byte_Array.PAYLOAD_NAME = 'Int8';
 TAG_Byte_Array.HEADER_SIZE = 4;
 tags.TAG_Byte_Array = typesByID[0x7] = TAG_Byte_Array;
 
@@ -169,21 +183,16 @@ class TAG_String extends VariableTag {
 TAG_String.TYPE_ID = 0x8;
 TAG_String.TYPE_NAME = 'String';
 TAG_String.PAYLOAD_SIZE = 1;
+TAG_String.PAYLOAD_NAME = 'Int8';
 TAG_String.HEADER_SIZE = 2;
 tags.TAG_String = typesByID[0x8] = TAG_String;
 
 // x9
 class TAG_List extends VariableTag {
-	constructor(vals, type) {
-		let p;
-		if (typeof type === 'number')
-			p = typesByID[type];
-		else
-			p = type;
+	constructor(vals) {
 		super({
 			"value": vals
 		});
-		this.payload = p.PAYLOAD_SIZE;
 	}
 	calcSize() {
 		let size = 1 + this.header;
@@ -206,12 +215,13 @@ class TAG_Compound extends VariableTag {
 		});
 	}
 	calcSize() {
-		let size = 2 + this.header;
+		let size = 1 + this.header;
 		size += this.value.reduce(
 			(acc, cur) => acc + cur.calcSize(), 0);
+		if (this.nameTag) size += this.nameTag.calcSize() - 1;
 		return size;
 	}
-} // TODO: this too
+}
 TAG_Compound.TYPE_ID = 0xA;
 TAG_Compound.TYPE_NAME = 'Compound';
 TAG_Compound.PAYLOAD_SIZE = null;
@@ -229,6 +239,7 @@ class TAG_Int_Array extends VariableTag {
 TAG_Int_Array.TYPE_ID = 0xB;
 TAG_Int_Array.TYPE_NAME = 'Int Array';
 TAG_Int_Array.PAYLOAD_SIZE = 4;
+TAG_Int_Array.PAYLOAD_NAME = 'Int32BE';
 TAG_Int_Array.HEADER_SIZE = 4;
 tags.TAG_Int_Array = typesByID[0xB] = TAG_Int_Array;
 
@@ -246,6 +257,7 @@ class TAG_Long_Array extends VariableTag {
 TAG_Long_Array.TYPE_ID = 0xC;
 TAG_Long_Array.TYPE_NAME = 'Long Array';
 TAG_Long_Array.PAYLOAD_SIZE = 8;
+TAG_Long_Array.PAYLOAD_NAME = 'BigInt64BE';
 TAG_Long_Array.HEADER_SIZE = 4;
 tags.TAG_Long_Array = typesByID[0xC] = TAG_Long_Array;
 
