@@ -1,3 +1,6 @@
 node_modules
 *.dat
 test.js
+nbtSpec.txt
+package-lock.json
+spec/

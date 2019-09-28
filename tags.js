@@ -204,7 +204,7 @@ class TAG_List extends VariableTag {
 TAG_List.TYPE_ID = 0x9;
 TAG_List.TYPE_NAME = 'List';
 TAG_List.PAYLOAD_SIZE = null;
-TAG_List.HEADER_SIZE = 2;
+TAG_List.HEADER_SIZE = 4;
 tags.TAG_List = typesByID[0x9] = TAG_List;
 
 // xA

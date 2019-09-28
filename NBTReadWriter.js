@@ -10,10 +10,9 @@ function parseBuffer(buf, offset = 0) {
 		offset
 	};
 	// Create the tag itself. switch is replaced with dynamic method call.
-	console.log('start ', offset);
 	const start = offset;
 	const tagType = buf.readUInt8(bufOff.offset++);
-	console.log('type ' + tagType + ' at ' + offset);
+	// console.log('type ' + tagType + ' at ' + offset);
 
 	let parsedTag = new typesByID[tagType]();
 	if (tagType == 0x00) return {
@@ -29,7 +28,7 @@ function parseBuffer(buf, offset = 0) {
 		parsedTag.value = buf['read' + parsedTag.payloadName](bufOff.offset); // Epic...
 		bufOff.offset += parsedTag.payload;
 	} else {
-		if (tagType == 0x09) // This is a LIST not an array, its more complex.
+		if (tagType == 0x09) // This is a LIST not an array, its more complicated
 			parseList(bufOff, parsedTag);
 		else if (tagType == 0x0a) // It is a compound
 			parseCompound(bufOff, parsedTag);
@@ -44,18 +43,43 @@ function parseBuffer(buf, offset = 0) {
 }
 
 function parseList(bufOff, parsedTag) {
-	const id = buf.readUInt8(++offset);
-	const size = typesByID[id].PAYLOAD_SIZE;
-	const length = buf.readInt32BE(offset += 2);
-	if (tagType == 0x9) {
-		parseList(buf, offset)
+	// console.log('parsing list');
+	const {
+		buf
+	} = bufOff;
+	const id = buf.readUInt8(bufOff.offset++);
+	const length = buf.readInt32BE(bufOff.offset);
+	bufOff.offset += 4;
+	// console.log('lengths', length, buf.readUInt8(bufOff.offset - 2), buf.readUInt8(bufOff.offset - 1), buf.readInt16BE(bufOff.offset - 2));
+	// this is nuts
+	let parser;
+	if (id <= 0x06) {
+		parser = (bufOff, parsedTag) => {
+			// console.log('read' + parsedTag.payloadName);
+			parsedTag.value = buf['read' + parsedTag.payloadName](bufOff.offset += parsedTag.payload);
+			// bufOff.offset += parsedTag.payload;
+		}
 	} else {
-		size = parsedTag
+		if (id == 0x09)
+			parser = parseList;
+		else if (id == 0x0a)
+			parser = parseCompound;
+		else
+			parser = parseArray;
+	}
+
+	// console.log('list length', length);
+	parsedTag.value = [];
+	for (var i = 0; i < length; i++) {
+		const newChild = new typesByID[id]();
+		parsedTag.value.push(newChild);
+		parser(bufOff, newChild);
 	}
 }
 
 function parseCompound(bufOff, parsedTag) {
-	let value = [];
+	// console.log('parsing compound');
+	const value = [];
 	do {
 		var {
 			tag,
@@ -65,31 +89,35 @@ function parseCompound(bufOff, parsedTag) {
 		value.push(tag);
 	}
 	while (!(tag instanceof tags.TAG_End));
+	// console.log('parsed compound');
 	parsedTag.value = value;
 }
 
 function parseArray(bufOff, parsedTag) {
-	const start = offset;
+	// console.log('parsing array');
 	const {
+		payloadName,
 		header,
-		payload,
-		payloadName
+		payload
 	} = parsedTag;
+	const {
+		buf
+	} = bufOff;
+	// const start = bufOff.offset;
 	const reader = (buf['read' + payloadName]).bind(buf);
+	// console.log('header', header, 'offset', bufOff.offset);
+	const length = buf.readIntBE(bufOff.offset, header) * payload;
+	const end = bufOff.offset + length + header;
+	bufOff.offset += header;
+	// console.log('length, bufOff.offset, end', length, bufOff.offset, end);
 
-	let length = buf.readIntBE(offset, header);
-	length *= payload;
-	offset += header;
-	let end = offset + length;
-
-	let value = [];
-	for (; offset < end; offset += payload) {
-		value.push(reader(offset));
+	const value = [];
+	for (; bufOff.offset < end; bufOff.offset += payload) {
+		// console.log('array offset', bufOff.offset);
+		value.push(reader(bufOff.offset));
 	}
-	return {
-		tag: value,
-		bytesRead: offset - header
-	}
+	// console.log('val', value);
+	parsedTag.value = value;
 }
 
 function parseName(bufOff) {
